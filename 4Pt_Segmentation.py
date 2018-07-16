@@ -4,6 +4,7 @@ import torch
 from collections import OrderedDict
 from PIL import Image
 import numpy as np
+import timeit
 from matplotlib import pyplot as plt
 
 from torch.nn.functional import upsample
@@ -36,12 +37,17 @@ net.load_state_dict(new_state_dict)
 net.eval()
 net.to(device)
 
-def Seg_4Pt(image_url, xmin, ymin, xmax, ymax):
+image_url = 'https://s3.us-east-2.amazonaws.com/humayun-images/test.jpg'
+xmin = 30
+ymin = 30
+xmax = 200
+ymax = 100
 
+def Seg_4Pt(image_url, xmin, ymin, xmax, ymax):
+    start_time = timeit.default_timer()
     image = np.array(Image.open(requests.get(image_url, stream=True).raw))
 
     with torch.no_grad():
-        extreme_points_ori = np.array(plt.ginput(4, timeout=0)).astype(np.int)
 
         #  Crop image to the bounding box from the extreme points and resize
         bbox = helpers.get_bbox_f8(image, xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax, pad=pad, zero_pad=True)
@@ -49,8 +55,8 @@ def Seg_4Pt(image_url, xmin, ymin, xmax, ymax):
         resize_image = helpers.fixed_resize(crop_image, (512, 512)).astype(np.float32)
 
         #  Generate extreme point heat map normalized to image values
-        extreme_points = extreme_points_ori - [np.min(extreme_points_ori[:, 0]), np.min(extreme_points_ori[:, 1])] + [pad,
-                                                                                                                      pad]
+        extreme_points_ori = np.array([[xmin,ymin],[xmin,ymax],[xmax,ymin],[xmax,ymax]])
+        extreme_points = extreme_points_ori-[np.min(extreme_points_ori[:, 0]),np.min(extreme_points_ori[:, 1])]+[pad,pad]
         extreme_points = (512 * extreme_points * [1 / crop_image.shape[1], 1 / crop_image.shape[0]]).astype(np.int)
         extreme_heatmap = helpers.make_gt(resize_image, extreme_points, sigma=10)
         extreme_heatmap = helpers.cstm_normalize(extreme_heatmap, 255)
@@ -69,5 +75,7 @@ def Seg_4Pt(image_url, xmin, ymin, xmax, ymax):
         pred = 1 / (1 + np.exp(-pred))
         pred = np.squeeze(pred)
         result = helpers.crop2fullmask(pred, bbox, im_size=image.shape[:2], zero_pad=True, relax=pad) > thres
+        stop_time = timeit.default_timer()
+        print("Execution time: " + str(stop_time - start_time) + "\n")
 
     return result
