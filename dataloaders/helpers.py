@@ -178,6 +178,30 @@ def get_bbox(mask, points=None, pad=0, zero_pad=False):
     return x_min, y_min, x_max, y_max
 
 
+def get_bbox_f8(mask, xmin=None, ymin=None, xmax=None, ymax=None, pad=0, zero_pad=False):
+
+    if xmin == None or ymin == None or xmax == None or ymax == None:
+        return None
+
+    if zero_pad:
+        x_min_bound = -np.inf
+        y_min_bound = -np.inf
+        x_max_bound = np.inf
+        y_max_bound = np.inf
+    else:
+        x_min_bound = 0
+        y_min_bound = 0
+        x_max_bound = mask.shape[1] - 1
+        y_max_bound = mask.shape[0] - 1
+
+    x_min = max(xmin - pad, x_min_bound)
+    y_min = max(ymin - pad, y_min_bound)
+    x_max = min(xmax + pad, x_max_bound)
+    y_max = min(ymax + pad, y_max_bound)
+
+    return x_min, y_min, x_max, y_max
+
+
 def crop_from_bbox(img, bbox, zero_pad=False):
     # Borders of image
     bounds = (0, 0, img.shape[1] - 1, img.shape[0] - 1)
